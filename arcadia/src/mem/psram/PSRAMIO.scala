@@ -40,8 +40,6 @@ import chisel3._
  * @param config The PSRAM configuration.
  */
 class PSRAMIO(config: Config) extends Bundle {
-  /** Wait */
-  val wait_n = Input(Bool())
   /** Clock enable 0 */
   val ce0_n = Output(Bool())
   /** Clock enable 1 */
@@ -58,6 +56,8 @@ class PSRAMIO(config: Config) extends Bundle {
   val ub_n = Output(Bool())
   /** Lower byte enable (active-low) */
   val lb_n = Output(Bool())
+  /** Wait */
+  val wait_n = Input(Bool())
   /** Address bus */
   val addr = Output(UInt(6.W))
   /** Data input bus */

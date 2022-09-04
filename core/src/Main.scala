@@ -37,6 +37,7 @@ import arcadia.gfx._
 import arcadia.mem._
 import arcadia.mem.arbiter.BurstMemArbiter
 import arcadia.mem.buffer.BurstBuffer
+import arcadia.mem.psram.{PSRAM, PSRAMIO}
 import arcadia.mem.sdram.{SDRAM, SDRAMIO}
 import arcadia.pocket.{Bridge, BridgeIO}
 import chisel3._
@@ -54,7 +55,9 @@ class Main extends Module {
     /** Bridge port */
     val bridge = BridgeIO()
     /** SDRAM port */
-    val sdram = SDRAMIO(Config.sdramConfig)
+    // val sdram = SDRAMIO(Config.sdramConfig)
+    /** PSRAM port */
+    val psram = PSRAMIO(Config.psramConfig)
     /** Video port */
     val video = VideoIO()
     /** RGB output */
@@ -71,8 +74,12 @@ class Main extends Module {
   val (_, wrap) = Counter(stateReg === State.next, Config.CLOCK_FREQ / 2)
 
   // SDRAM
-  val sdram = Module(new SDRAM(Config.sdramConfig))
-  sdram.io.sdram <> io.sdram
+  // val sdram = Module(new SDRAM(Config.sdramConfig))
+  // sdram.io.sdram <> io.sdram
+
+  // PSRAM
+  val psram = Module(new PSRAM(Config.psramConfig))
+  psram.io.psram <> io.psram
 
   // Bridge
   val bridge = Module(new Bridge(
@@ -92,7 +99,8 @@ class Main extends Module {
   arbiter.io.in(1).addr := addrReg
   arbiter.io.in(1).din := DontCare
   arbiter.io.in(1).mask := DontCare
-  arbiter.io.out <> sdram.io.mem
+  // arbiter.io.out <> sdram.io.mem
+  arbiter.io.out <> psram.io.mem
 
   val dataReg = RegEnable(arbiter.io.in(1).dout, stateReg === State.readWait && arbiter.io.in(1).valid)
 
@@ -103,12 +111,12 @@ class Main extends Module {
       }
     }
     is(State.read) {
-      when(sdram.io.mem.wait_n) {
+      when(psram.io.mem.wait_n) {
         stateReg := State.readWait
       }
     }
     is(State.readWait) {
-      when(sdram.io.mem.burstDone) {
+      when(psram.io.mem.burstDone) {
         stateReg := State.next
       }
     }

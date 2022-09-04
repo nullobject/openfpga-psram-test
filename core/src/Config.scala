@@ -50,6 +50,9 @@ object Config {
   /** SDRAM configuration */
   val sdramConfig = sdram.Config(clockFreq = CLOCK_FREQ, burstLength = 2)
 
+  /** PSRAM configuration */
+  val psramConfig = psram.Config(clockFreq = CLOCK_FREQ, burstLength = 4)
+
   /** Video timing configuration */
   val videoTimingConfig = VideoTimingConfig(
     clockFreq = 6000000,
