@@ -12,5 +12,8 @@ build:
 copy:
 	rsync -avh --progress --exclude \*.zip dist/ /media/josh/2470-BED0 && umount /media/josh/2470-BED0
 
+program:
+	cd quartus; quartus_pgm -m jtag -c USB-Blaster -o "p;output_files/$(REVISION_NAME).sof@1"
+
 clean:
 	rm -rf dist/Cores/$(CORE_NAME)/out quartus/core/Core.* quartus/db quartus/incremental_db quartus/output_files test_run_dir
