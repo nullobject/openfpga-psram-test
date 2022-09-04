@@ -36,7 +36,6 @@ import arcadia._
 import arcadia.gfx._
 import arcadia.mem._
 import arcadia.mem.arbiter.BurstMemArbiter
-import arcadia.mem.buffer.BurstBuffer
 import arcadia.mem.psram.{PSRAM, PSRAMIO}
 import arcadia.mem.sdram.{SDRAM, SDRAMIO}
 import arcadia.pocket.{Bridge, BridgeIO}
@@ -129,37 +128,31 @@ class Main extends Module {
   }
 
   // Video timing
-  // withClock(io.videoClock) {
-    val videoTiming = withClock(io.videoClock) { Module(new VideoTiming(Config.videoTimingConfig)) }
-    videoTiming.io.offset := SVec2(0.S, 0.S)
-    val video = videoTiming.io.timing
+  val videoTiming = withClock(io.videoClock) { Module(new VideoTiming(Config.videoTimingConfig)) }
+  videoTiming.io.offset := SVec2(0.S, 0.S)
+  val video = videoTiming.io.timing
 
-    // The debug ROM contains alphanumeric character tiles
-    val debugRom = Module(new SinglePortRom(
-      addrWidth = Config.DEBUG_ROM_ADDR_WIDTH,
-      dataWidth = Config.DEBUG_ROM_DATA_WIDTH,
-      depth = 512,
-      initFile = "roms/alpha.mif"
-    ))
+  // The debug ROM contains alphanumeric character tiles
+  val debugRom = Module(new SinglePortRom(
+    addrWidth = Config.DEBUG_ROM_ADDR_WIDTH,
+    dataWidth = Config.DEBUG_ROM_DATA_WIDTH,
+    depth = 512,
+    initFile = "roms/alpha.mif"
+  ))
 
-    // Address text
-    val addrText = Module(new DebugLayer("ADDR: $%04X\nDATA: $%04X"))
-    addrText.io.args := Seq(addrReg, dataReg)
-    addrText.io.pos := UVec2(100.U, 100.U)
-    addrText.io.color := 0xf.U
-    addrText.io.tileRom <> debugRom.io
-    addrText.io.video <> video
+  // Address text
+  val addrText = Module(new DebugLayer("ADDR: $%04X\nDATA: $%04X"))
+  addrText.io.args := Seq(addrReg, dataReg)
+  addrText.io.pos := UVec2(100.U, 100.U)
+  addrText.io.color := 0xf.U
+  addrText.io.tileRom <> debugRom.io
+  addrText.io.video <> video
 
-    val pixel = addrText.io.data
+  val rgb = addrText.io.data ## addrText.io.data ## addrText.io.data
 
-    val rgb = RGB(pixel, pixel, pixel)
-    val black = RGB(0.U(Config.COLOR_WIDTH.W), 0.U(Config.COLOR_WIDTH.W), 0.U(Config.COLOR_WIDTH.W))
-
-    // Video output
-    io.video := RegNext(video)
-    io.rgb := RegNext(Mux(video.displayEnable, rgb, black).asUInt)
-    // io.rgb := RegNext(0.U)
-  // }
+  // Video output
+  io.video := RegNext(video)
+  io.rgb := RegNext(Mux(video.displayEnable, rgb, 0.U))
 }
 
 object Main extends App {
