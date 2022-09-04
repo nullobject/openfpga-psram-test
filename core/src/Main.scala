@@ -38,24 +38,27 @@ import arcadia.mem._
 import arcadia.mem.arbiter.BurstMemArbiter
 import arcadia.mem.buffer.BurstBuffer
 import arcadia.mem.sdram.{SDRAM, SDRAMIO}
-import arcadia.pocket.Bridge
+import arcadia.pocket.{Bridge, BridgeIO}
 import chisel3._
+import chisel3.experimental.FlatIO
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import chisel3.util._
 
 /** The top-level module. */
 class Main extends Module {
-  val io = IO(new Bundle {
-    /** SDRAM port */
-    val sdram = SDRAMIO(Config.sdramConfig)
+  val io = FlatIO(new Bundle {
+    /** Bridge clock */
+    val bridgeClock = Input(Clock())
     /** Video clock */
     val videoClock = Input(Clock())
-    /** Video port */
-    val video = Output(new VideoIO)
-    /** RGB output */
-    val rgb = Output(RGB(Config.COLOR_WIDTH.W))
     /** Bridge port */
-    val bridge = new Bridge
+    val bridge = BridgeIO()
+    /** SDRAM port */
+    val sdram = SDRAMIO(Config.sdramConfig)
+    /** Video port */
+    val video = VideoIO()
+    /** RGB output */
+    val rgb = Output(UInt(24.W))
   })
 
   // States
@@ -71,19 +74,18 @@ class Main extends Module {
   val sdram = Module(new SDRAM(Config.sdramConfig))
   sdram.io.sdram <> io.sdram
 
-  // Download buffer
-  val downloadBuffer = Module(new BurstBuffer(buffer.Config(
-    inAddrWidth = Bridge.ADDR_WIDTH,
-    inDataWidth = Bridge.DATA_WIDTH,
-    outAddrWidth = Config.sdramConfig.addrWidth,
-    outDataWidth = Config.sdramConfig.dataWidth,
+  // Bridge
+  val bridge = Module(new Bridge(
+    addrWidth = Config.sdramConfig.addrWidth,
+    dataWidth = Config.sdramConfig.dataWidth,
     burstLength = Config.sdramConfig.burstLength
-  )))
-  downloadBuffer.io.in <> io.bridge.rom
+  ))
+  bridge.io.bridgeClock := io.bridgeClock
+  bridge.io.bridge <> io.bridge
 
   // Arbiter
   val arbiter = Module(new BurstMemArbiter(2, Config.sdramConfig.addrWidth, Config.sdramConfig.dataWidth))
-  arbiter.io.in(0) <> downloadBuffer.io.out.asBurstMemIO
+  arbiter.io.in(0) <> bridge.io.download.asBurstMemIO
   arbiter.io.in(1).rd := stateReg === State.read
   arbiter.io.in(1).wr := false.B
   arbiter.io.in(1).burstLength := Config.sdramConfig.burstLength.U
@@ -101,7 +103,7 @@ class Main extends Module {
       }
     }
     is(State.read) {
-      when(!sdram.io.mem.waitReq) {
+      when(sdram.io.mem.wait_n) {
         stateReg := State.readWait
       }
     }
@@ -119,8 +121,8 @@ class Main extends Module {
   }
 
   // Video timing
-  withClock(io.videoClock) {
-   val videoTiming = Module(new VideoTiming(Config.videoTimingConfig))
+  // withClock(io.videoClock) {
+    val videoTiming = withClock(io.videoClock) { Module(new VideoTiming(Config.videoTimingConfig)) }
     videoTiming.io.offset := SVec2(0.S, 0.S)
     val video = videoTiming.io.timing
 
@@ -147,8 +149,9 @@ class Main extends Module {
 
     // Video output
     io.video := RegNext(video)
-    io.rgb := RegNext(Mux(video.displayEnable, rgb, black))
-  }
+    io.rgb := RegNext(Mux(video.displayEnable, rgb, black).asUInt)
+    // io.rgb := RegNext(0.U)
+  // }
 }
 
 object Main extends App {

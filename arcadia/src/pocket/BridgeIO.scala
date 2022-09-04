@@ -30,33 +30,41 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package arcadia.mister
+package arcadia.pocket
 
+import arcadia.mem._
 import chisel3._
+import chisel3.util._
 
-/** A bundle that contains the joystick signals. */
-class JoystickIO extends Bundle {
-  /** Player up */
-  val up = Input(Bool())
-  /** Player down */
-  val down = Input(Bool())
-  /** Player left */
-  val left = Input(Bool())
-  /** Player right */
-  val right = Input(Bool())
-  /** Player buttons */
-  val buttons = Input(Bits(JoystickIO.BUTTON_COUNT.W))
-  /** Player start */
-  val start = Input(Bool())
-  /** Player coin */
-  val coin = Input(Bool())
-  /** Player pause */
-  val pause = Input(Bool())
+/** A flow control interface used to download data into the core. */
+class BridgeIO extends Bundle {
+  /** Write enable */
+  val wr = Input(Bool())
+  /** Address bus */
+  val addr = Input(UInt(BridgeIO.ADDR_WIDTH.W))
+  /** Output data bus */
+  val dout = Input(Bits(BridgeIO.DATA_WIDTH.W))
+  /** Pause flag */
+  val pause = Input(Bool()) // FIXME: remove from bridge
+  /** Done flag */
+  val done = Input(Bool()) // FIXME: remove from bridge
+
+  /** Converts the bridge to an asynchronous write-only memory interface. */
+  def rom: WriteMemIO = {
+    val mem = Wire(WriteMemIO(BridgeIO.ADDR_WIDTH, BridgeIO.DATA_WIDTH))
+    mem.wr := wr
+    mem.addr := addr
+    mem.mask := Fill(mem.maskWidth, 1.U)
+    mem.din := dout
+    mem
+  }
 }
 
-object JoystickIO {
-  /** The number of buttons */
-  val BUTTON_COUNT = 4
+object BridgeIO {
+  /** The width of the address bus */
+  val ADDR_WIDTH = 32
+  /** The width of the data bus */
+  val DATA_WIDTH = 32
 
-  def apply() = new JoystickIO
+  def apply() = new BridgeIO
 }

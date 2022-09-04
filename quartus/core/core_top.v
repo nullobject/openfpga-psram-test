@@ -394,42 +394,39 @@ mf_pllbase mp1 (
     .locked         ( pll_core_locked )
 );
 
-wire        dram_oe;
+wire        dram_oe_n;
 wire [15:0] dram_din;
 
 assign dram_clk = sys_clock;
-assign dram_dq = dram_oe ? dram_din : 16'bZ;
-
-wire [7:0] r, g, b;
-assign video_rgb = {r, g, b};
+assign dram_dq = dram_oe_n ? 16'bZ : dram_din;
 
 Main main (
-  .clock(sys_clock),
   .reset(~pll_core_locked),
 
-  .io_sdram_cke(dram_cke),
-  .io_sdram_ras_n(dram_ras_n),
-  .io_sdram_cas_n(dram_cas_n),
-  .io_sdram_we_n(dram_we_n),
-  .io_sdram_oe(dram_oe),
-  .io_sdram_bank(dram_ba),
-  .io_sdram_addr(dram_a),
-  .io_sdram_din(dram_din),
-  .io_sdram_dout(dram_dq),
+  .clock(sys_clock),
+  .bridgeClock(clk_74a),
+  .videoClock(video_rgb_clock),
 
-  .io_videoClock(video_rgb_clock),
-  .io_video_hSync(video_hs),
-  .io_video_vSync(video_vs),
-  .io_video_displayEnable(video_de),
+  .bridge_wr(bridge_wr),
+  .bridge_addr(bridge_addr),
+  .bridge_dout(bridge_wr_data),
+  .bridge_done(dataslot_allcomplete),
 
-  .io_rgb_r(r),
-  .io_rgb_g(g),
-  .io_rgb_b(b),
+  .sdram_cke(dram_cke),
+  .sdram_ras_n(dram_ras_n),
+  .sdram_cas_n(dram_cas_n),
+  .sdram_we_n(dram_we_n),
+  .sdram_oe_n(dram_oe_n),
+  .sdram_bank(dram_ba),
+  .sdram_addr(dram_a),
+  .sdram_din(dram_din),
+  .sdram_dout(dram_dq),
 
-  .io_bridge_wr(bridge_wr),
-  .io_bridge_addr(bridge_addr),
-  .io_bridge_dout(bridge_wr_data),
-  .io_bridge_done(dataslot_allcomplete)
+  .video_hSync(video_hs),
+  .video_vSync(video_vs),
+  .video_displayEnable(video_de),
+
+  .rgb(video_rgb)
 );
 
 ///////////////////////////////////////////////

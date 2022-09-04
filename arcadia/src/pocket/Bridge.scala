@@ -32,37 +32,77 @@
 
 package arcadia.pocket
 
+import arcadia.Util
 import arcadia.mem._
+import arcadia.mem.buffer.BurstBuffer
+import arcadia.mem.request.WriteRequest
+import arcadida.pocket.OptionsIO
 import chisel3._
 import chisel3.util._
 
-/** A flow control interface used to download data into the core. */
-class Bridge extends Bundle {
-  /** Write enable */
-  val wr = Input(Bool())
-  /** Address bus */
-  val addr = Input(UInt(Bridge.ADDR_WIDTH.W))
-  /** Output data bus */
-  val dout = Input(Bits(Bridge.DATA_WIDTH.W))
-  /** Done flag */
-  val done = Input(Bool())
+/**
+ * The bridge controller buffers write requests from the Pocket and presents them as a burst
+ * write-only memory interface.
+ *
+ * @param addrWidth   The address bus width.
+ * @param dataWidth   The data bus width.
+ * @param burstLength The number of words to be transferred during a read/write.
+ */
+class Bridge(addrWidth: Int, dataWidth: Int, burstLength: Int) extends Module {
+  val io = IO(new Bundle {
+    /** Bridge clock */
+    val bridgeClock = Input(Clock())
+    /** Bridge interface */
+    val bridge = BridgeIO()
+    /** Options port */
+    val options = OptionsIO()
+    /** Download port */
+    val download = BurstWriteMemIO(addrWidth, dataWidth)
+  })
 
-  /** Converts ROM data to an asynchronous write-only memory interface. */
-  def rom: AsyncWriteMemIO = {
-    val mem = Wire(AsyncWriteMemIO(Bridge.ADDR_WIDTH, Bridge.DATA_WIDTH))
-    mem.wr := wr && addr(31, 24) === 0.U
-    mem.addr := addr
-    mem.mask := Fill(mem.maskWidth, 1.U)
-    mem.din := dout
-    mem
-  }
+  // The Pocket bridge writes to the FIFO in the bridge clock domain. The FIFO is read in the system
+  // clock domain.
+  val fifo = withClock(io.bridgeClock) { Module(new DualClockFIFO(
+    new WriteRequest(UInt(BridgeIO.ADDR_WIDTH.W), Bits(BridgeIO.DATA_WIDTH.W)), Bridge.FIFO_DEPTH)
+  ) }
+  fifo.io.readClock := clock
+  fifo.io.enq.bits := WriteRequest(io.bridge.rom)
+  fifo.io.enq.valid := io.bridge.rom.wr && io.bridge.rom.addr(31, 28) === 0.U
+
+  // The download buffer is used to buffer ROM data from the bridge, so that complete words are
+  // bursted to memory.
+  val downloadBuffer = Module(new BurstBuffer(buffer.Config(
+    inAddrWidth = BridgeIO.ADDR_WIDTH,
+    inDataWidth = BridgeIO.DATA_WIDTH,
+    outAddrWidth = addrWidth,
+    outDataWidth = dataWidth,
+    burstLength = burstLength
+  )))
+  downloadBuffer.io.in.addr := fifo.io.deq.bits.addr
+  downloadBuffer.io.in.din := fifo.io.deq.bits.din
+  downloadBuffer.io.in.mask := Fill(BridgeIO.DATA_WIDTH / 8, 1.U)
+  downloadBuffer.io.in.wr := fifo.io.deq.valid
+  fifo.io.deq.ready := downloadBuffer.io.in.wait_n
+  downloadBuffer.io.out <> io.download
+
+  // Swap endianness for writing to registers
+  val din = Util.swapEndianness(io.bridge.rom.din)
+
+  /** Returns true if the register at the given address should be latched, false otherwise. */
+  def latch(addr: Long): Bool = io.bridge.rom.wr && io.bridge.rom.addr === addr.U
+
+  // Options
+  io.options.gameIndex := RegEnable(din, latch(0xf9000000L))
+  io.options.scalerMode := RegEnable(din, latch(0xf9000004L))
+  io.options.debug := RegEnable(din, latch(0xf9000008L))
+  io.options.layer(0) := RegEnable(din, latch(0xf900000cL))
+  io.options.layer(1) := RegEnable(din, latch(0xf9000010L))
+  io.options.layer(2) := RegEnable(din, latch(0xf9000014L))
+  io.options.sprite := RegEnable(din, latch(0xf9000018L))
+  io.options.flip := false.B
 }
 
 object Bridge {
-  /** The width of the address bus */
-  val ADDR_WIDTH = 32
-  /** The width of the data bus */
-  val DATA_WIDTH = 32
-
-  def apply() = new Bridge
+  /** The depth of the download FIFO in words */
+  val FIFO_DEPTH = 16
 }
