@@ -187,7 +187,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       // read
       dut.io.mem.rd.poke(true)
       dut.io.mem.addr.poke(0x123456)
-      waitForRead(dut)
+      waitForActive(dut)
       dut.io.psram.ce0_n.expect(false)
       dut.io.psram.ce1_n.expect(true)
       dut.io.psram.cre.expect(false)
@@ -350,7 +350,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       // write
       dut.io.mem.wr.poke(true)
       dut.io.mem.addr.poke(0x123456)
-      waitForWrite(dut)
+      waitForActive(dut)
       dut.io.psram.ce0_n.expect(false)
       dut.io.psram.ce1_n.expect(true)
       dut.io.psram.cre.expect(false)

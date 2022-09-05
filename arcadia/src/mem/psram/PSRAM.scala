@@ -33,6 +33,7 @@
 package arcadia.mem.psram
 
 import arcadia.mem.BurstMemIO
+import arcadia.mem.request.Request
 import arcadia.util.Counter
 import chisel3._
 import chisel3.util._
@@ -69,19 +70,26 @@ class PSRAM(config: Config) extends Module {
     val init :: config :: idle :: active :: read :: write :: Nil = Enum(6)
   }
 
-  // Wires
+  // State register
   val nextState = Wire(UInt())
+  val stateReg = RegNext(nextState, State.init)
+
+  // Assert the latch signal when a request should be latched
+  val latch = stateReg =/= State.active && nextState === State.active
+
+  // Request register
+  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr, io.mem.din, io.mem.mask)
+  val requestReg = RegEnable(request, latch)
 
   // Registers
-  val stateReg = RegNext(nextState, State.init)
   val ce0Reg = RegInit(false.B)
   val ce1Reg = RegInit(false.B)
   val creReg = RegInit(false.B)
   val advReg = RegInit(false.B)
   val oeReg = RegInit(false.B)
   val weReg = RegInit(false.B)
-  val addrReg = RegNext(io.mem.addr.head(6))
-  val dinReg = RegNext(io.mem.addr.tail(6))
+  val addrReg = Reg(UInt())
+  val dinReg = RegNext(io.mem.din)
   val doutReg = RegNext(io.psram.dout)
 
   // Counters
@@ -95,12 +103,6 @@ class PSRAM(config: Config) extends Module {
   val waitReg = RegNext(nextState === State.idle)
   val validReg = RegNext(stateReg === State.read && io.psram.wait_n)
   val burstDoneReg = RegNext(burstDone)
-
-  // Latch input data during a write request
-  when(stateReg === State.write) { dinReg := io.mem.din }
-
-  // Assert output enable at the start of a read request
-  when(stateReg === State.read && waitCounter === 0.U) { oeReg := true.B }
 
   // Default to the previous state
   nextState := stateReg
@@ -121,8 +123,6 @@ class PSRAM(config: Config) extends Module {
   def bcr() = {
     advReg := false.B
     weReg := true.B
-    addrReg := config.opcode.head(6)
-    dinReg := config.opcode.tail(6)
   }
 
   /** Wait for a request. */
@@ -141,19 +141,22 @@ class PSRAM(config: Config) extends Module {
     ce0Reg := true.B // FIXME
     advReg := true.B
     weReg := io.mem.wr
+    addrReg := request.addr.head(6)
+    dinReg := request.addr.tail(6)
   }
 
-  /** Wait for read transaction. */
+  /** Waits for read transaction. */
   def read() = {
     nextState := State.read
     advReg := false.B
     oeReg := true.B
   }
 
-  /** Wait for write transaction. */
+  /** Waits for write transaction. */
   def write() = {
     nextState := State.write
     advReg := false.B
+    dinReg := requestReg.din
   }
 
   // FSM
