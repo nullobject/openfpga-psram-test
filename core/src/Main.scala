@@ -37,7 +37,6 @@ import arcadia.gfx._
 import arcadia.mem._
 import arcadia.mem.arbiter.BurstMemArbiter
 import arcadia.mem.psram.{PSRAM, PSRAMIO}
-import arcadia.mem.sdram.{SDRAM, SDRAMIO}
 import arcadia.pocket.{Bridge, BridgeIO}
 import chisel3._
 import chisel3.experimental.FlatIO
@@ -53,8 +52,6 @@ class Main extends Module {
     val videoClock = Input(Clock())
     /** Bridge port */
     val bridge = BridgeIO()
-    /** SDRAM port */
-    // val sdram = SDRAMIO(Config.sdramConfig)
     /** PSRAM port */
     val psram = PSRAMIO(Config.psramConfig)
     /** Video port */
@@ -70,11 +67,7 @@ class Main extends Module {
 
   val stateReg = RegInit(State.write)
   val addrReg = RegInit(0.U(16.W))
-  val (_, wrap) = Counter(stateReg === State.next, Config.CLOCK_FREQ / 2)
-
-  // SDRAM
-  // val sdram = Module(new SDRAM(Config.sdramConfig))
-  // sdram.io.sdram <> io.sdram
+  val (_, wrap) = Counter(stateReg === State.next, (Config.CLOCK_FREQ / 2).toInt)
 
   // PSRAM
   val psram = Module(new PSRAM(Config.psramConfig))
@@ -82,23 +75,22 @@ class Main extends Module {
 
   // Bridge
   val bridge = Module(new Bridge(
-    addrWidth = Config.sdramConfig.addrWidth,
-    dataWidth = Config.sdramConfig.dataWidth,
-    burstLength = Config.sdramConfig.burstLength
+    addrWidth = Config.psramConfig.addrWidth,
+    dataWidth = Config.psramConfig.dataWidth,
+    burstLength = Config.psramConfig.burstLength
   ))
   bridge.io.bridgeClock := io.bridgeClock
   bridge.io.bridge <> io.bridge
 
   // Arbiter
-  val arbiter = Module(new BurstMemArbiter(2, Config.sdramConfig.addrWidth, Config.sdramConfig.dataWidth))
+  val arbiter = Module(new BurstMemArbiter(2, Config.psramConfig.addrWidth, Config.psramConfig.dataWidth))
   arbiter.io.in(0) <> bridge.io.download.asBurstMemIO
   arbiter.io.in(1).rd := stateReg === State.read
   arbiter.io.in(1).wr := false.B
-  arbiter.io.in(1).burstLength := Config.sdramConfig.burstLength.U
+  arbiter.io.in(1).burstLength := Config.psramConfig.burstLength.U
   arbiter.io.in(1).addr := addrReg
   arbiter.io.in(1).din := DontCare
   arbiter.io.in(1).mask := DontCare
-  // arbiter.io.out <> sdram.io.mem
   arbiter.io.out <> psram.io.mem
 
   val dataReg = RegEnable(arbiter.io.in(1).dout, stateReg === State.readWait && arbiter.io.in(1).valid)

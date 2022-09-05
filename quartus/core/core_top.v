@@ -258,6 +258,40 @@ assign port_tran_sck_dir = 1'b0;    // clock direction can change
 assign port_tran_sd = 1'bz;
 assign port_tran_sd_dir = 1'b0;     // SD is input and not used
 
+// tie off the rest of the pins we are not using
+assign cram1_a = 'h0;
+assign cram1_dq = {16{1'bZ}};
+assign cram1_clk = 0;
+assign cram1_adv_n = 1;
+assign cram1_cre = 0;
+assign cram1_ce0_n = 1;
+assign cram1_ce1_n = 1;
+assign cram1_oe_n = 1;
+assign cram1_we_n = 1;
+assign cram1_ub_n = 1;
+assign cram1_lb_n = 1;
+
+assign dram_a = 'h0;
+assign dram_ba = 'h0;
+assign dram_dq = {16{1'bZ}};
+assign dram_dqm = 'h0;
+assign dram_clk = 'h0;
+assign dram_cke = 'h0;
+assign dram_ras_n = 'h1;
+assign dram_cas_n = 'h1;
+assign dram_we_n = 'h1;
+
+assign sram_a = 'h0;
+assign sram_dq = {16{1'bZ}};
+assign sram_oe_n  = 1;
+assign sram_we_n  = 1;
+assign sram_ub_n  = 1;
+assign sram_lb_n  = 1;
+
+assign dbg_tx = 1'bZ;
+assign user1 = 1'bZ;
+assign aux_scl = 1'bZ;
+assign vpll_feed = 1'bZ;
 
 // for bridge write data, we just broadcast it to all bus devices
 // for bridge read data, we have to mux it
@@ -394,14 +428,9 @@ mf_pllbase mp1 (
     .locked         ( pll_core_locked )
 );
 
-// wire        dram_oe_n;
-// wire [15:0] dram_din;
-// assign dram_clk = sys_clock;
-// assign dram_dq = dram_oe_n ? 16'bZ : dram_din;
-
 wire [15:0] cram0_din;
 assign cram0_clk = sys_clock;
-assign cram0_dq = cram0_oe_n ? 16'bZ : cram0_din;
+assign cram0_dq = cram0_oe_n ? cram0_din : 16'bZ;
 
 Main main (
   .reset(~pll_core_locked),
@@ -427,16 +456,6 @@ Main main (
   .psram_addr(cram0_a),
   .psram_din(cram0_din),
   .psram_dout(cram0_dq),
-
-//   .sdram_cke(dram_cke),
-//   .sdram_ras_n(dram_ras_n),
-//   .sdram_cas_n(dram_cas_n),
-//   .sdram_we_n(dram_we_n),
-//   .sdram_oe_n(dram_oe_n),
-//   .sdram_bank(dram_ba),
-//   .sdram_addr(dram_a),
-//   .sdram_din(dram_din),
-//   .sdram_dout(dram_dq),
 
   .video_hSync(video_hs),
   .video_vSync(video_vs),

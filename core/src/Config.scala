@@ -37,9 +37,7 @@ import arcadia.mem._
 
 object Config {
   /** The system clock frequency (Hz) */
-  val CLOCK_FREQ = 96000000
-
-  val COLOR_WIDTH = 8 // BPP
+  val CLOCK_FREQ = 96_000_000D
 
   // Tile ROMs
   val TILE_ROM_ADDR_WIDTH = 17
@@ -47,15 +45,12 @@ object Config {
   val DEBUG_ROM_ADDR_WIDTH = 9
   val DEBUG_ROM_DATA_WIDTH = 32
 
-  /** SDRAM configuration */
-  val sdramConfig = sdram.Config(clockFreq = CLOCK_FREQ, burstLength = 2)
-
   /** PSRAM configuration */
-  val psramConfig = psram.Config(clockFreq = CLOCK_FREQ, burstLength = 4)
+  val psramConfig = psram.Config(clockFreq = CLOCK_FREQ, burstLength = 4, tPU = 1_000_000_000L)
 
   /** Video timing configuration */
   val videoTimingConfig = VideoTimingConfig(
-    clockFreq = 6000000,
+    clockFreq = 6_000_000D,
     clockDiv = 1,
     hFreq = 15625, // Hz
     vFreq = 59.19, // Hz

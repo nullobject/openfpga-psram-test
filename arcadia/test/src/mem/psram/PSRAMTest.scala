@@ -106,7 +106,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.mem.rd.poke(true)
       waitForRead(dut)
       dut.io.psram.wait_n.poke(true)
-      dut.clock.step(4)
+      dut.clock.step(5)
       dut.io.debug.idle.expect(true)
     }
   }
@@ -116,7 +116,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.mem.wr.poke(true)
       waitForWrite(dut)
       dut.io.psram.wait_n.poke(true)
-      dut.clock.step(4)
+      dut.clock.step(5)
       dut.io.debug.idle.expect(true)
     }
   }
@@ -212,7 +212,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.dout.poke(0x90ab)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
-      dut.io.mem.burstDone.expect(false)
+      dut.io.mem.burstDone.expect(true)
       dut.io.mem.dout.expect(0x90ab)
 
       // data 3
@@ -250,6 +250,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.clock.step()
       dut.io.psram.oe_n.expect(false)
       dut.clock.step()
+      dut.io.psram.oe_n.expect(false)
+      dut.clock.step()
       dut.io.psram.oe_n.expect(true)
     }
   }
@@ -273,6 +275,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.clock.step()
       dut.io.mem.wait_n.expect(false)
       dut.clock.step()
+      dut.io.mem.wait_n.expect(false)
+      dut.clock.step()
       dut.io.mem.wait_n.expect(true)
     }
   }
@@ -287,6 +291,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.wait_n.poke(true)
 
       // valid
+      dut.clock.step()
+      dut.io.mem.valid.expect(true)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
       dut.clock.step()
@@ -415,6 +421,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.wait_n.poke(true)
 
       // wait
+      dut.io.mem.wait_n.expect(false)
+      dut.clock.step()
       dut.io.mem.wait_n.expect(false)
       dut.clock.step()
       dut.io.mem.wait_n.expect(false)

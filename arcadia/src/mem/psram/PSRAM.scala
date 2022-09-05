@@ -86,7 +86,7 @@ class PSRAM(config: Config) extends Module {
   // Counters
   val (waitCounter, _) = Counter.static(config.waitCounterMax, reset = nextState =/= stateReg)
   val (burstCounter, burstDone) = Counter.static(config.burstLength,
-    enable = (stateReg === State.read || stateReg === State.write) && io.psram.wait_n
+    enable = waitCounter =/= 0.U && (stateReg === State.read || stateReg === State.write) && io.psram.wait_n
   )
 
   // Control signals
@@ -128,6 +128,7 @@ class PSRAM(config: Config) extends Module {
   def idle() = {
     nextState := State.idle
     ce0Reg := false.B // FIXME
+    creReg := false.B
     advReg := false.B
     oeReg := false.B
     weReg := false.B
@@ -189,7 +190,7 @@ class PSRAM(config: Config) extends Module {
   io.mem.dout := doutReg
   io.mem.wait_n := waitReg
   io.mem.valid := validReg
-  io.mem.burstDone := burstDoneReg
+  io.mem.burstDone := burstDone
   io.psram.ce0_n := !ce0Reg
   io.psram.ce1_n := !ce1Reg
   io.psram.cre := creReg
