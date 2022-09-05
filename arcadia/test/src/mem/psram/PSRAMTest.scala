@@ -57,6 +57,9 @@ trait PSRAMTestHelpers {
   protected def waitForIdle(dut: PSRAM) =
     while (!dut.io.debug.idle.peekBoolean()) { dut.clock.step() }
 
+  protected def waitForActive(dut: PSRAM) =
+    while (!dut.io.debug.active.peekBoolean()) { dut.clock.step() }
+
   protected def waitForRead(dut: PSRAM) =
     while (!dut.io.debug.read.peekBoolean()) { dut.clock.step() }
 
@@ -83,19 +86,28 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
     }
   }
 
-  it should "move to the read state" in {
+  it should "move to the active state" in {
     test(mkPSRAM()) { dut =>
       dut.io.mem.rd.poke(true)
       waitForIdle(dut)
+      dut.clock.step()
+      dut.io.debug.active.expect(true)
+    }
+  }
+
+  it should "move to the read state after the active state" in {
+    test(mkPSRAM()) { dut =>
+      dut.io.mem.rd.poke(true)
+      waitForRead(dut)
       dut.clock.step()
       dut.io.debug.read.expect(true)
     }
   }
 
-  it should "move to the write state" in {
+  it should "move to the write state after the active state" in {
     test(mkPSRAM()) { dut =>
       dut.io.mem.wr.poke(true)
-      waitForIdle(dut)
+      waitForWrite(dut)
       dut.clock.step()
       dut.io.debug.write.expect(true)
     }
@@ -106,7 +118,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.mem.rd.poke(true)
       waitForRead(dut)
       dut.io.psram.wait_n.poke(true)
-      dut.clock.step(5)
+      dut.clock.step(4)
       dut.io.debug.idle.expect(true)
     }
   }
@@ -116,7 +128,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.mem.wr.poke(true)
       waitForWrite(dut)
       dut.io.psram.wait_n.poke(true)
-      dut.clock.step(5)
+      dut.clock.step(4)
       dut.io.debug.idle.expect(true)
     }
   }
@@ -238,7 +250,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
 
       // read
       dut.io.mem.rd.poke(true)
-      waitForRead(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
 
       // output enable
@@ -263,7 +275,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       // read
       dut.io.mem.rd.poke(true)
       dut.io.mem.wait_n.expect(true)
-      waitForRead(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
 
       // wait
@@ -287,12 +299,12 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
 
       // read
       dut.io.mem.rd.poke(true)
-      waitForRead(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
+      dut.clock.step()
 
       // valid
-      dut.clock.step()
-      dut.io.mem.valid.expect(true)
+      dut.io.mem.valid.expect(false)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
       dut.clock.step()
@@ -312,11 +324,11 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
 
       // read
       dut.io.mem.rd.poke(true)
-      waitForRead(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
+      dut.clock.step()
 
       // burst done
-      dut.clock.step()
       dut.io.mem.burstDone.expect(false)
       dut.clock.step()
       dut.io.mem.burstDone.expect(false)
@@ -396,7 +408,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
 
       // write
       dut.io.mem.wr.poke(true)
-      waitForWrite(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
 
       // output enable
@@ -417,7 +429,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       // write
       dut.io.mem.wr.poke(true)
       dut.io.mem.wait_n.expect(true)
-      waitForWrite(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
 
       // wait
@@ -441,11 +453,11 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
 
       // write
       dut.io.mem.wr.poke(true)
-      waitForWrite(dut)
+      waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
+      dut.clock.step()
 
       // burst done
-      dut.clock.step()
       dut.io.mem.burstDone.expect(false)
       dut.clock.step()
       dut.io.mem.burstDone.expect(false)

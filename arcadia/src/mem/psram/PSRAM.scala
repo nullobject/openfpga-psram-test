@@ -58,6 +58,7 @@ class PSRAM(config: Config) extends Module {
       val init = Bool()
       val config = Bool()
       val idle = Bool()
+      val active = Bool()
       val read = Bool()
       val write = Bool()
     })
@@ -65,7 +66,7 @@ class PSRAM(config: Config) extends Module {
 
   // States
   object State {
-    val init :: config :: idle :: read :: write :: Nil = Enum(5)
+    val init :: config :: idle :: active :: read :: write :: Nil = Enum(6)
   }
 
   // Wires
@@ -86,7 +87,7 @@ class PSRAM(config: Config) extends Module {
   // Counters
   val (waitCounter, _) = Counter.static(config.waitCounterMax, reset = nextState =/= stateReg)
   val (burstCounter, burstDone) = Counter.static(config.burstLength,
-    enable = waitCounter =/= 0.U && (stateReg === State.read || stateReg === State.write) && io.psram.wait_n
+    enable = (stateReg === State.read || stateReg === State.write) && io.psram.wait_n
   )
 
   // Control signals
@@ -124,7 +125,7 @@ class PSRAM(config: Config) extends Module {
     dinReg := config.opcode.tail(6)
   }
 
-  /** Enters the idle state. */
+  /** Wait for a request. */
   def idle() = {
     nextState := State.idle
     ce0Reg := false.B // FIXME
@@ -134,22 +135,32 @@ class PSRAM(config: Config) extends Module {
     weReg := false.B
   }
 
-  /** Starts a read operation. */
-  def read() = {
-    nextState := State.read
+  /** Starts a read/write transaction. */
+  def active() = {
+    nextState := State.active
     ce0Reg := true.B // FIXME
     creReg := false.B
-    advReg := true.B
+    advReg := false.B
     oeReg := false.B
     weReg := false.B
   }
 
-  /** Starts a write operation. */
+  /** Wait for read transaction. */
+  def read() = {
+    nextState := State.read
+    ce0Reg := true.B // FIXME
+    creReg := false.B
+    advReg := false.B
+    oeReg := true.B
+    weReg := false.B
+  }
+
+  /** Wait for write transaction. */
   def write() = {
     nextState := State.write
     ce0Reg := true.B // FIXME
     creReg := false.B
-    advReg := true.B
+    advReg := false.B
     oeReg := false.B
     weReg := true.B
   }
@@ -172,15 +183,20 @@ class PSRAM(config: Config) extends Module {
 
     // Wait for request
     is(State.idle) {
-      when(io.mem.rd) { read() }.elsewhen(io.mem.wr) { write() }
+      when(io.mem.rd || io.mem.wr) { active() }
     }
 
-    // Execute read command
+    // Start read/write request
+    is(State.active) {
+      when(io.mem.wr) { write() }.otherwise { read() }
+    }
+
+    // Wait for read
     is(State.read) {
       when(burstDone) { idle() }
     }
 
-    // Execute write command
+    // Wait for write
     is(State.write) {
       when(burstDone) { idle() }
     }
@@ -204,6 +220,7 @@ class PSRAM(config: Config) extends Module {
   io.debug.init := stateReg === State.init
   io.debug.config := stateReg === State.config
   io.debug.idle := stateReg === State.idle
+  io.debug.active := stateReg === State.active
   io.debug.read := stateReg === State.read
   io.debug.write := stateReg === State.write
 
