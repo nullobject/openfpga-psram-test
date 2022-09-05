@@ -35,7 +35,7 @@ package arcadia.mem.request
 import chisel3._
 
 /** Represents a memory request. */
-class ReadWriteRequest[S <: Data, T <: Data](s: S, t: T) extends Bundle {
+class Request[S <: Data, T <: Data](s: S, t: T) extends Bundle {
   /** Read enable */
   val rd = Output(Bool())
   /** Write enable */
@@ -48,9 +48,9 @@ class ReadWriteRequest[S <: Data, T <: Data](s: S, t: T) extends Bundle {
   val mask = Output(UInt((t.getWidth / 8).W))
 }
 
-object ReadWriteRequest {
+object Request {
   /**
-   * Creates a read-write request.
+   * Creates a read-write memory request.
    *
    * @param rd   Read enable.
    * @param wr   Write enable.
@@ -58,8 +58,8 @@ object ReadWriteRequest {
    * @param din  The data value.
    * @param mask The byte mask.
    */
-  def apply[S <: Data, T <: Data](rd: Bool, wr: Bool, addr: S, din: T, mask: UInt): ReadWriteRequest[S, T] = {
-    val req = Wire(new ReadWriteRequest(chiselTypeOf(addr), chiselTypeOf(din)))
+  def apply[S <: Data, T <: Data](rd: Bool, wr: Bool, addr: S, din: T, mask: UInt): Request[S, T] = {
+    val req = Wire(new Request(chiselTypeOf(addr), chiselTypeOf(din)))
     req.rd := rd
     req.wr := wr
     req.addr := addr
