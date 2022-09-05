@@ -74,11 +74,11 @@ class PSRAM(config: Config) extends Module {
   val nextState = Wire(UInt())
   val stateReg = RegNext(nextState, State.init)
 
-  // Assert the latch signal when a request should be latched
+  // Assert latch signal when a request should be latched
   val latch = stateReg =/= State.active && nextState === State.active
 
   // Request register
-  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr, io.mem.din, io.mem.mask)
+  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr >> 3, io.mem.din, io.mem.mask)
   val requestReg = RegEnable(request, latch)
 
   // Registers
@@ -100,6 +100,7 @@ class PSRAM(config: Config) extends Module {
 
   // Control signals
   val initDone = waitCounter === (config.initWait - 1).U
+  val activeDone = waitCounter =/= 0.U && io.psram.wait_n
   val waitReg = RegNext(nextState === State.idle)
   val validReg = RegNext(stateReg === State.read && io.psram.wait_n)
   val burstDoneReg = RegNext(burstDone)
@@ -159,6 +160,8 @@ class PSRAM(config: Config) extends Module {
     dinReg := requestReg.din
   }
 
+  advReg := false.B
+
   // FSM
   switch(stateReg) {
     // Initialize device
@@ -182,7 +185,9 @@ class PSRAM(config: Config) extends Module {
 
     // Start read/write request
     is(State.active) {
-      when(io.mem.wr) { write() }.otherwise { read() }
+      when(activeDone) {
+        when(requestReg.wr) { write() }.otherwise { read() }
+      }
     }
 
     // Wait for read

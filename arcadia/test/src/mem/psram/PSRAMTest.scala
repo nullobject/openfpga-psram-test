@@ -161,7 +161,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.oe_n.expect(true)
       dut.io.psram.we_n.expect(true)
       dut.io.psram.addr.expect("b00_10_00".U)
-      dut.io.psram.din.expect("b0_0_011_0_0_0_00_01_0_001".U)
+      dut.io.psram.din.expect("b0_0_011_0_0_1_00_01_0_001".U)
       dut.clock.step()
 
       // bcr

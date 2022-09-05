@@ -113,7 +113,7 @@ class Main extends Module {
     }
     is(State.next) {
       when(wrap) {
-        addrReg := addrReg + 1.U
+        addrReg := addrReg + 8.U
         stateReg := State.read
       }
     }
