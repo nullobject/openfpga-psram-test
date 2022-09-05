@@ -139,30 +139,21 @@ class PSRAM(config: Config) extends Module {
   def active() = {
     nextState := State.active
     ce0Reg := true.B // FIXME
-    creReg := false.B
-    advReg := false.B
-    oeReg := false.B
-    weReg := false.B
+    advReg := true.B
+    weReg := io.mem.wr
   }
 
   /** Wait for read transaction. */
   def read() = {
     nextState := State.read
-    ce0Reg := true.B // FIXME
-    creReg := false.B
     advReg := false.B
     oeReg := true.B
-    weReg := false.B
   }
 
   /** Wait for write transaction. */
   def write() = {
     nextState := State.write
-    ce0Reg := true.B // FIXME
-    creReg := false.B
     advReg := false.B
-    oeReg := false.B
-    weReg := true.B
   }
 
   // FSM
