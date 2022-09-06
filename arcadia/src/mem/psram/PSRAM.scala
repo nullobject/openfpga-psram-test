@@ -78,7 +78,7 @@ class PSRAM(config: Config) extends Module {
   val latch = stateReg =/= State.active && nextState === State.active
 
   // Request register
-  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr >> 3, io.mem.din, io.mem.mask)
+  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr >> 2, 0.U, 0.U)
   val requestReg = RegEnable(request, latch)
 
   // Registers
@@ -95,15 +95,25 @@ class PSRAM(config: Config) extends Module {
   // Counters
   val (waitCounter, _) = Counter.static(config.waitCounterMax, reset = nextState =/= stateReg)
   val (burstCounter, burstDone) = Counter.static(config.burstLength,
-    enable = (stateReg === State.read || stateReg === State.write) && io.psram.wait_n
+    enable = stateReg === State.read || stateReg === State.write
   )
 
   // Control signals
   val initDone = waitCounter === (config.initWait - 1).U
   val activeDone = waitCounter =/= 0.U && io.psram.wait_n
-  val waitReg = RegNext(nextState === State.idle)
-  val validReg = RegNext(stateReg === State.read && io.psram.wait_n)
-  val burstDoneReg = RegNext(burstDone)
+//  val waitReg = RegNext(nextState === State.idle)
+  val validReg = RegNext(stateReg === State.read)
+//  val burstDoneReg = RegNext(burstDone)
+  val burstBusy = burstCounter < (config.burstLength - 1).U
+
+  val wait_n = {
+    val idle = stateReg === State.idle && !request.wr
+    val write = (stateReg === State.active && activeDone && requestReg.wr) || (stateReg === State.write && burstBusy)
+    idle || write
+  }
+
+  // Assert output enable signal after a read transaction has started
+  when(stateReg === State.active && requestReg.rd) { oeReg := true.B }
 
   // Default to the previous state
   nextState := stateReg
@@ -150,14 +160,14 @@ class PSRAM(config: Config) extends Module {
   def read() = {
     nextState := State.read
     advReg := false.B
-    oeReg := true.B
+//    oeReg := true.B
   }
 
   /** Waits for write transaction. */
   def write() = {
     nextState := State.write
     advReg := false.B
-    dinReg := requestReg.din
+//    dinReg := requestReg.din
   }
 
   advReg := false.B
@@ -203,7 +213,7 @@ class PSRAM(config: Config) extends Module {
 
   // Outputs
   io.mem.dout := doutReg
-  io.mem.wait_n := waitReg
+  io.mem.wait_n := wait_n
   io.mem.valid := validReg
   io.mem.burstDone := burstDone
   io.psram.ce0_n := !ce0Reg

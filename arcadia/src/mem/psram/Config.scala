@@ -75,12 +75,12 @@ case class Config(clockFreq: Double,
     0.U(2.W) ## // reserved
       RegisterSelect.BCR.U(2.W) ##
       0.U(2.W) ## // reserved
-      OperatingMode.asynchronous.U(1.W) ##
+      OperatingMode.synchronous.U(1.W) ##
       LatencyMode.variable.U(1.W) ##
       (latency - 1).U(3.W) ##
       WaitPolarity.activeLow.U(1.W) ##
       0.U(1.W) ## // reserved
-      WaitConfig.duringDelay.U(1.W) ##
+      WaitConfig.beforeDelay.U(1.W) ##
       0.U(2.W) ## // reserved
       DriveStrength.half.U(2.W) ##
       !burstWrap.B ##
