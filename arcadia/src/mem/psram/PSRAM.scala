@@ -78,7 +78,7 @@ class PSRAM(config: Config) extends Module {
   val latch = stateReg =/= State.active && nextState === State.active
 
   // Request register
-  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr >> 2, 0.U, 0.U)
+  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr >> 1, 0.U, 0.U)
   val requestReg = RegEnable(request, latch)
 
   // Registers
@@ -94,9 +94,9 @@ class PSRAM(config: Config) extends Module {
 
   // Counters
   val (waitCounter, _) = Counter.static(config.waitCounterMax, reset = nextState =/= stateReg)
-  val (burstCounter, burstDone) = Counter.static(config.burstLength,
-    enable = stateReg === State.read || stateReg === State.write
-  )
+//  val (burstCounter, burstDone) = Counter.static(config.burstLength,
+//    enable = stateReg === State.read || stateReg === State.write
+//  )
 
   // Control signals
   val initDone = waitCounter === (config.initWait - 1).U
@@ -104,7 +104,8 @@ class PSRAM(config: Config) extends Module {
 //  val waitReg = RegNext(nextState === State.idle)
   val validReg = RegNext(stateReg === State.read)
 //  val burstDoneReg = RegNext(burstDone)
-  val burstBusy = burstCounter < (config.burstLength - 1).U
+  val burstBusy = waitCounter < (config.burstLength - 1).U
+  val burstDone = (stateReg === State.write || stateReg === State.read) && waitCounter === (config.burstLength - 1).U
 
   val wait_n = {
     val idle = stateReg === State.idle && !request.wr
@@ -235,6 +236,6 @@ class PSRAM(config: Config) extends Module {
 
   // Debug
   if (sys.env.get("DEBUG").contains("1")) {
-    printf(p"PSRAM(state: $stateReg, nextState: $nextState, addr: 0x${Hexadecimal(addrReg)}, waitCounter: $waitCounter, burstCounter: $burstCounter)\n")
+    printf(p"PSRAM(state: $stateReg, nextState: $nextState, addr: 0x${Hexadecimal(addrReg)}, waitCounter: $waitCounter)\n")
   }
 }

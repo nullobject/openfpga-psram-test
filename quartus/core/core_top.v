@@ -422,14 +422,14 @@ mf_pllbase mp1 (
     .rst            ( 0 ),
 
     .outclk_0       ( sys_clock ),
-    .outclk_1       ( video_rgb_clock ),
-    .outclk_2       ( video_rgb_clock_90 ),
+    .outclk_1       ( cram0_clk ),
+    .outclk_2       ( video_rgb_clock ),
+    .outclk_3       ( video_rgb_clock_90 ),
 
     .locked         ( pll_core_locked )
 );
 
 wire [15:0] cram0_din;
-assign cram0_clk = sys_clock;
 assign cram0_dq = cram0_oe_n ? cram0_din : 16'bZ;
 
 Main main (
