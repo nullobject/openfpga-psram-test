@@ -107,7 +107,7 @@ class PSRAM(config: Config) extends Module {
   val burstBusy = waitCounter < (config.burstLength - 1).U
   val burstDone = (RegNext(stateReg === State.read && waitCounter === (config.burstLength - 1).U)) || (stateReg === State.write && waitCounter === (config.burstLength - 2).U)
   val readDone = stateReg === State.read && waitCounter === (config.burstLength - 1).U
-  val writeDone = stateReg === State.write && waitCounter === (config.burstLength - 2).U
+  val writeDone = stateReg === State.write && waitCounter === (config.burstLength - 1).U
   val wait_n = {
     val idle = stateReg === State.idle && !request.wr
     val write = (stateReg === State.active && writeActiveDone) || (stateReg === State.write && burstBusy)
