@@ -66,8 +66,9 @@ class Main extends Module {
   }
 
   val stateReg = RegInit(State.write)
-  val addrReg = RegInit(0.U(16.W))
-  val (_, wrap) = Counter(stateReg === State.next, (Config.CLOCK_FREQ / 2).toInt)
+  val addrReg = RegInit(0.U(12.W))
+  val errorsReg = RegInit(0.U(16.W))
+  val wordReg = RegInit(0.U(3.W))
 
   // PSRAM
   val psram = Module(new PSRAM(Config.psramConfig))
@@ -93,7 +94,20 @@ class Main extends Module {
   arbiter.io.in(1).mask := DontCare
   arbiter.io.out <> psram.io.mem
 
-  val dataReg = RegEnable(arbiter.io.in(1).dout, stateReg === State.readWait && arbiter.io.in(1).valid)
+  when(stateReg === State.readWait && arbiter.io.in(1).valid) {
+    val data = MuxLookup(wordReg, 0x0100.U, Seq(
+      1.U -> 0x0302.U,
+      2.U -> 0x0504.U,
+      3.U -> 0x0706.U,
+      4.U -> 0x0908.U,
+      5.U -> 0x0b0a.U,
+      6.U -> 0x0d0c.U,
+      7.U -> 0x0f0e.U,
+    ))
+    val error = arbiter.io.in(1).dout =/= data
+    when(error) { errorsReg := errorsReg + 1.U }
+    wordReg := wordReg + 1.U
+  }
 
   switch(stateReg) {
     is(State.write) {
@@ -112,10 +126,8 @@ class Main extends Module {
       }
     }
     is(State.next) {
-      when(wrap) {
-        addrReg := addrReg + 8.U
-        stateReg := State.read
-      }
+      addrReg := addrReg + 8.U
+      stateReg := State.read
     }
   }
 
@@ -133,8 +145,8 @@ class Main extends Module {
   ))
 
   // Address text
-  val addrText = Module(new DebugLayer("ADDR: $%04X\nDATA: $%04X"))
-  addrText.io.args := Seq(addrReg, dataReg)
+  val addrText = Module(new DebugLayer("ADDR: $%04X\nERRS: $%04X"))
+  addrText.io.args := Seq(addrReg, errorsReg)
   addrText.io.pos := UVec2(100.U, 100.U)
   addrText.io.color := 0xf.U
   addrText.io.tileRom <> debugRom.io
