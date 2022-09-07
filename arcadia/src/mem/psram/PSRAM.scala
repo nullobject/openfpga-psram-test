@@ -94,9 +94,6 @@ class PSRAM(config: Config) extends Module {
 
   // Counters
   val (waitCounter, _) = Counter.static(config.waitCounterMax, reset = nextState =/= stateReg)
-//  val (burstCounter, burstDone) = Counter.static(config.burstLength,
-//    enable = stateReg === State.read || stateReg === State.write
-//  )
 
   // Control signals
   val initDone = waitCounter === (config.initWait - 1).U
