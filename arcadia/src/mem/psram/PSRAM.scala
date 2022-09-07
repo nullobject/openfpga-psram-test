@@ -101,15 +101,16 @@ class PSRAM(config: Config) extends Module {
   // Control signals
   val initDone = waitCounter === (config.initWait - 1).U
   val activeDone = waitCounter =/= 0.U && io.psram.wait_n
-//  val waitReg = RegNext(nextState === State.idle)
+  val readActiveDone = requestReg.rd && waitCounter =/= 0.U && io.psram.wait_n
+  val writeActiveDone = requestReg.wr && waitCounter === (config.latency - 1).U
   val validReg = RegNext(stateReg === State.read)
-//  val burstDoneReg = RegNext(burstDone)
   val burstBusy = waitCounter < (config.burstLength - 1).U
-  val burstDone = (stateReg === State.write || stateReg === State.read) && waitCounter === (config.burstLength - 1).U
-
+  val burstDone = (RegNext(stateReg === State.read && waitCounter === (config.burstLength - 1).U)) || (stateReg === State.write && waitCounter === (config.burstLength - 2).U)
+  val readDone = stateReg === State.read && waitCounter === (config.burstLength - 1).U
+  val writeDone = stateReg === State.write && waitCounter === (config.burstLength - 2).U
   val wait_n = {
     val idle = stateReg === State.idle && !request.wr
-    val write = (stateReg === State.active && activeDone && requestReg.wr) || (stateReg === State.write && burstBusy)
+    val write = (stateReg === State.active && writeActiveDone) || (stateReg === State.write && burstBusy)
     idle || write
   }
 
@@ -196,19 +197,20 @@ class PSRAM(config: Config) extends Module {
 
     // Start read/write request
     is(State.active) {
-      when(activeDone) {
-        when(requestReg.wr) { write() }.otherwise { read() }
-      }
+//      when(activeDone) {
+//        when(requestReg.wr) { write() }.otherwise { read() }
+//      }
+      when(readActiveDone) { read() }.elsewhen(writeActiveDone) { write() }
     }
 
     // Wait for read
     is(State.read) {
-      when(burstDone) { idle() }
+      when(readDone) { idle() }
     }
 
     // Wait for write
     is(State.write) {
-      when(burstDone) { idle() }
+      when(writeDone) { idle() }
     }
   }
 
