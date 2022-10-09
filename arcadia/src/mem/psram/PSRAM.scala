@@ -129,12 +129,6 @@ class PSRAM(config: Config) extends Module {
     dinReg := config.opcode.tail(6)
   }
 
-  /** Writes bus configuration register (BCR). */
-  def bcr() = {
-    advReg := false.B
-    weReg := true.B
-  }
-
   /** Wait for a request. */
   def idle() = {
     nextState := State.idle
@@ -180,11 +174,6 @@ class PSRAM(config: Config) extends Module {
 
     // Configure device
     is(State.config) {
-//      when(waitCounter === (config.vpWait - 1).U) {
-//        bcr()
-//      }.elsewhen(waitCounter === (config.cwWait - 1).U) {
-//        idle()
-//      }
       when(waitCounter === (config.cwWait - 1).U) {
         idle()
       }

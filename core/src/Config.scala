@@ -46,7 +46,7 @@ object Config {
   val DEBUG_ROM_DATA_WIDTH = 32
 
   /** PSRAM configuration */
-  val psramConfig = psram.Config(clockFreq = CLOCK_FREQ, burstLength = 4, tPU = 1_000_000_000L)
+  val psramConfig = psram.Config(clockFreq = CLOCK_FREQ, burstLength = 4)
 
   /** Video timing configuration */
   val videoTimingConfig = VideoTimingConfig(

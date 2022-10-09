@@ -33,6 +33,7 @@
 package core
 
 import arcadia._
+import arcadia.util.Counter
 import arcadia.gfx._
 import arcadia.mem._
 import arcadia.mem.arbiter.BurstMemArbiter
@@ -62,13 +63,14 @@ class Main extends Module {
 
   // States
   object State {
-    val write :: read :: readWait :: next :: Nil = Enum(4)
+    val write :: pause :: read :: readWait :: next :: Nil = Enum(5)
   }
 
   val stateReg = RegInit(State.write)
   val addrReg = RegInit(0.U(12.W))
   val errorsReg = RegInit(0.U(16.W))
   val wordReg = RegInit(0.U(7.W))
+  val (_, wrap) = Counter.static(96_000_000L, stateReg === State.pause)
 
   // PSRAM
   val psram = Module(new PSRAM(Config.psramConfig))
@@ -106,6 +108,11 @@ class Main extends Module {
   switch(stateReg) {
     is(State.write) {
       when(io.bridge.done) {
+        stateReg := State.pause
+      }
+    }
+    is(State.pause) {
+      when(wrap) {
         stateReg := State.read
       }
     }
