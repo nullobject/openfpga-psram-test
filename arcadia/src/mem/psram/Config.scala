@@ -57,12 +57,15 @@ case class Config(clockFreq: Double,
                   burstWrap: Boolean = false,
                   latency: Int = 4,
                   tPU: Double = 150_000,
+                  tCW: Double = 70,
                   tVP: Double = 5,
                   tWP: Double = 45) extends BusConfig {
   /** The clock period (ns). */
   val clockPeriod = 1 / clockFreq * 1_000_000_000D
   /** The number of clock cycles to during initialization. */
   val initWait = (tPU / clockPeriod).ceil.toLong
+  /** The number of clock cycles from chip enable to write. */
+  val cwWait = (tCW / clockPeriod).ceil.toLong
   /** The number of clock cycles to during address valid pulse. */
   val vpWait = (tVP / clockPeriod).ceil.toLong
   /** The number of clock cycles to during write pulse. */

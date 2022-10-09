@@ -124,7 +124,7 @@ class PSRAM(config: Config) extends Module {
     creReg := true.B
     advReg := true.B
     oeReg := false.B
-    weReg := false.B
+    weReg := true.B
     addrReg := config.opcode.head(6)
     dinReg := config.opcode.tail(6)
   }
@@ -180,9 +180,12 @@ class PSRAM(config: Config) extends Module {
 
     // Configure device
     is(State.config) {
-      when(waitCounter === (config.vpWait - 1).U) {
-        bcr()
-      }.elsewhen(waitCounter === (config.vpWait + config.wpWait - 1).U) {
+//      when(waitCounter === (config.vpWait - 1).U) {
+//        bcr()
+//      }.elsewhen(waitCounter === (config.cwWait - 1).U) {
+//        idle()
+//      }
+      when(waitCounter === (config.cwWait - 1).U) {
         idle()
       }
     }
