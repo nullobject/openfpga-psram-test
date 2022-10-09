@@ -68,7 +68,7 @@ class Main extends Module {
   val stateReg = RegInit(State.write)
   val addrReg = RegInit(0.U(12.W))
   val errorsReg = RegInit(0.U(16.W))
-  val wordReg = RegInit(0.U(3.W))
+  val wordReg = RegInit(0.U(7.W))
 
   // PSRAM
   val psram = Module(new PSRAM(Config.psramConfig))
@@ -95,15 +95,9 @@ class Main extends Module {
   arbiter.io.out <> psram.io.mem
 
   when(stateReg === State.readWait && arbiter.io.in(1).valid) {
-    val data = MuxLookup(wordReg, 0x0100.U, Seq(
-      1.U -> 0x0302.U,
-      2.U -> 0x0504.U,
-      3.U -> 0x0706.U,
-      4.U -> 0x0908.U,
-      5.U -> 0x0b0a.U,
-      6.U -> 0x0d0c.U,
-      7.U -> 0x0f0e.U,
-    ))
+    val data = MuxLookup(wordReg, 0.U,
+      0.to(255).grouped(2).map { i => i.head + (i.last << 8) }.zipWithIndex.map { case (k, v) => (v.U, k.U) }.toSeq
+    )
     val error = arbiter.io.in(1).dout =/= data
     when(error) { errorsReg := errorsReg + 1.U }
     wordReg := wordReg + 1.U
