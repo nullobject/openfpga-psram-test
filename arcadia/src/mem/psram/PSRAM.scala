@@ -109,14 +109,8 @@ class PSRAM(config: Config) extends Module {
     idle || write
   }
 
-  // Assert output enable signal after a read transaction has started
-  when(stateReg === State.active && requestReg.rd) { oeReg := true.B }
-
   // Default to the previous state
   nextState := stateReg
-
-  // Default to false
-  advReg := false.B
 
   /** Writes opcode to address bus. */
   def opcode() = {
@@ -153,15 +147,11 @@ class PSRAM(config: Config) extends Module {
   /** Waits for read transaction. */
   def read() = {
     nextState := State.read
-    advReg := false.B
-//    oeReg := true.B
   }
 
   /** Waits for write transaction. */
   def write() = {
     nextState := State.write
-    advReg := false.B
-//    dinReg := requestReg.din
   }
 
   // FSM
@@ -173,6 +163,7 @@ class PSRAM(config: Config) extends Module {
 
     // Configure device
     is(State.config) {
+      advReg := false.B
       when(waitCounter === (config.cwWait - 1).U) {
         idle()
       }
@@ -185,8 +176,12 @@ class PSRAM(config: Config) extends Module {
 
     // Start read/write request
     is(State.active) {
-      when(activeDone) {
-        when(requestReg.wr) { write() }.otherwise { read() }
+      advReg := false.B
+      when(requestReg.rd) {
+        oeReg := true.B
+        when(activeDone) { read() }
+      }.elsewhen(requestReg.wr) {
+        when(activeDone) { write() }
       }
     }
 
