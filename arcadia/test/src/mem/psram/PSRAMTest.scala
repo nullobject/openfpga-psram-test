@@ -81,7 +81,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
   it should "move to the idle state after configuring the device" in {
     test(mkPSRAM()) { dut =>
       waitForConfig(dut)
-      dut.clock.step(6)
+      dut.clock.step(7)
       dut.io.debug.idle.expect(true)
     }
   }
@@ -98,6 +98,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
   it should "move to the read state after the active state" in {
     test(mkPSRAM()) { dut =>
       dut.io.mem.rd.poke(true)
+      dut.io.psram.wait_n.poke(true)
       waitForRead(dut)
       dut.clock.step()
       dut.io.debug.read.expect(true)
@@ -107,6 +108,7 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
   it should "move to the write state after the active state" in {
     test(mkPSRAM()) { dut =>
       dut.io.mem.wr.poke(true)
+      dut.io.psram.wait_n.poke(true)
       waitForWrite(dut)
       dut.clock.step()
       dut.io.debug.write.expect(true)
@@ -116,8 +118,9 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
   it should "return to the idle state from the read state" in {
     test(mkPSRAM()) { dut =>
       dut.io.mem.rd.poke(true)
-      waitForRead(dut)
       dut.io.psram.wait_n.poke(true)
+      waitForRead(dut)
+      dut.io.psram.wait_n.poke(false)
       dut.clock.step(4)
       dut.io.debug.idle.expect(true)
     }
@@ -126,8 +129,9 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
   it should "return to the idle state from the write state" in {
     test(mkPSRAM()) { dut =>
       dut.io.mem.wr.poke(true)
-      waitForWrite(dut)
       dut.io.psram.wait_n.poke(true)
+      waitForWrite(dut)
+      dut.io.psram.wait_n.poke(false)
       dut.clock.step(4)
       dut.io.debug.idle.expect(true)
     }
@@ -163,11 +167,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.addr.expect("b00_10_00".U)
       dut.io.psram.din.expect("b0_0_011_0_0_1_00_01_0_001".U)
       dut.clock.step()
-
-      // bcr
       dut.io.psram.adv_n.expect(true)
-      dut.io.psram.we_n.expect(true)
-      dut.clock.step(5)
+      dut.clock.step(6)
 
       // done
       dut.io.psram.ce0_n.expect(true)
@@ -194,17 +195,17 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.adv_n.expect(false)
       dut.io.psram.oe_n.expect(true)
       dut.io.psram.we_n.expect(true)
-      dut.io.psram.addr.expect(0x12)
-      dut.io.psram.din.expect(0x3456)
+      dut.io.psram.addr.expect(0x9)
+      dut.io.psram.din.expect(0x1a2b)
       dut.clock.step()
 
       // wait
       dut.io.psram.wait_n.poke(false)
       dut.clock.step()
+      dut.io.psram.wait_n.poke(true)
+      dut.clock.step()
 
       // data 0
-      dut.io.psram.wait_n.poke(true)
-      dut.io.psram.oe_n.expect(false)
       dut.io.psram.dout.poke(0x1234)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
@@ -212,7 +213,6 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.mem.dout.expect(0x1234)
 
       // data 1
-      dut.io.psram.oe_n.expect(false)
       dut.io.psram.dout.poke(0x5678)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
@@ -220,15 +220,13 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.mem.dout.expect(0x5678)
 
       // data 2
-      dut.io.psram.oe_n.expect(false)
       dut.io.psram.dout.poke(0x90ab)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
-      dut.io.mem.burstDone.expect(true)
+      dut.io.mem.burstDone.expect(false)
       dut.io.mem.dout.expect(0x90ab)
 
       // data 3
-      dut.io.psram.oe_n.expect(false)
       dut.io.psram.dout.poke(0xcdef)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
@@ -264,6 +262,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.clock.step()
       dut.io.psram.oe_n.expect(false)
       dut.clock.step()
+      dut.io.psram.oe_n.expect(false)
+      dut.clock.step()
       dut.io.psram.oe_n.expect(true)
     }
   }
@@ -289,6 +289,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.clock.step()
       dut.io.mem.wait_n.expect(false)
       dut.clock.step()
+      dut.io.mem.wait_n.expect(false)
+      dut.clock.step()
       dut.io.mem.wait_n.expect(true)
     }
   }
@@ -304,6 +306,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.clock.step()
 
       // valid
+      dut.io.mem.valid.expect(false)
+      dut.clock.step()
       dut.io.mem.valid.expect(false)
       dut.clock.step()
       dut.io.mem.valid.expect(true)
@@ -335,6 +339,10 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.clock.step()
       dut.io.mem.burstDone.expect(false)
       dut.clock.step()
+      dut.io.mem.burstDone.expect(false)
+      dut.clock.step()
+      dut.io.mem.burstDone.expect(false)
+      dut.clock.step()
       dut.io.mem.burstDone.expect(true)
       dut.clock.step()
       dut.io.mem.burstDone.expect(false)
@@ -357,8 +365,8 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       dut.io.psram.adv_n.expect(false)
       dut.io.psram.oe_n.expect(true)
       dut.io.psram.we_n.expect(false)
-      dut.io.psram.addr.expect(0x12)
-      dut.io.psram.din.expect(0x3456)
+      dut.io.psram.addr.expect(0x9)
+      dut.io.psram.din.expect(0x1a2b)
 
       // wait
       dut.io.psram.wait_n.poke(false)
@@ -382,18 +390,19 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
       // data 2
       dut.io.mem.din.poke(0x90ab)
       dut.clock.step()
-      dut.io.mem.burstDone.expect(false)
+      dut.io.mem.burstDone.expect(true)
       dut.io.psram.oe_n.expect(true)
       dut.io.psram.din.expect(0x90ab)
 
       // data 3
       dut.io.mem.din.poke(0xcdef)
       dut.clock.step()
-      dut.io.mem.burstDone.expect(true)
+      dut.io.mem.burstDone.expect(false)
       dut.io.psram.oe_n.expect(true)
       dut.io.psram.din.expect(0xcdef)
 
       // done
+      dut.clock.step()
       dut.io.psram.ce0_n.expect(true)
       dut.io.psram.ce1_n.expect(true)
       dut.io.psram.adv_n.expect(true)
@@ -428,22 +437,22 @@ class PSRAMTest  extends AnyFlatSpec with ChiselScalatestTester with Matchers wi
 
       // write
       dut.io.mem.wr.poke(true)
-      dut.io.mem.wait_n.expect(true)
+      dut.io.mem.wait_n.expect(false)
       waitForActive(dut)
       dut.io.psram.wait_n.poke(true)
 
       // wait
       dut.io.mem.wait_n.expect(false)
       dut.clock.step()
-      dut.io.mem.wait_n.expect(false)
-      dut.clock.step()
-      dut.io.mem.wait_n.expect(false)
-      dut.clock.step()
-      dut.io.mem.wait_n.expect(false)
-      dut.clock.step()
-      dut.io.mem.wait_n.expect(false)
+      dut.io.mem.wait_n.expect(true)
       dut.clock.step()
       dut.io.mem.wait_n.expect(true)
+      dut.clock.step()
+      dut.io.mem.wait_n.expect(true)
+      dut.clock.step()
+      dut.io.mem.wait_n.expect(true)
+      dut.clock.step()
+      dut.io.mem.wait_n.expect(false)
     }
   }
 

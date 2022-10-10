@@ -78,7 +78,7 @@ class PSRAM(config: Config) extends Module {
   val latch = stateReg =/= State.active && nextState === State.active
 
   // Request register
-  val request = Request(io.mem.rd, io.mem.wr, io.mem.addr >> 1, 0.U, 0.U)
+  val request = Request(io.mem.rd, io.mem.wr, 0.U ## io.mem.addr >> 1, 0.U, 0.U)
   val requestReg = RegEnable(request, latch)
 
   // Registers
@@ -98,16 +98,14 @@ class PSRAM(config: Config) extends Module {
   // Control signals
   val initDone = waitCounter === (config.initWait - 1).U
   val activeDone = waitCounter =/= 0.U && io.psram.wait_n
-  val readActiveDone = requestReg.rd && waitCounter =/= 0.U && io.psram.wait_n
-  val writeActiveDone = requestReg.wr && waitCounter === (config.latency - 1).U
   val validReg = RegNext(stateReg === State.read)
   val burstBusy = waitCounter < (config.burstLength - 1).U
-  val burstDone = (RegNext(stateReg === State.read && waitCounter === (config.burstLength - 1).U)) || (stateReg === State.write && waitCounter === (config.burstLength - 2).U)
+  val burstDone = RegNext(stateReg === State.read && waitCounter === (config.burstLength - 1).U) || (stateReg === State.write && waitCounter === (config.burstLength - 2).U)
   val readDone = stateReg === State.read && waitCounter === (config.burstLength - 1).U
   val writeDone = stateReg === State.write && waitCounter === (config.burstLength - 1).U
   val wait_n = {
     val idle = stateReg === State.idle && !request.wr
-    val write = (stateReg === State.active && writeActiveDone) || (stateReg === State.write && burstBusy)
+    val write = (stateReg === State.active && activeDone && requestReg.wr) || (stateReg === State.write && burstBusy)
     idle || write
   }
 
@@ -116,6 +114,9 @@ class PSRAM(config: Config) extends Module {
 
   // Default to the previous state
   nextState := stateReg
+
+  // Default to false
+  advReg := false.B
 
   /** Writes opcode to address bus. */
   def opcode() = {
@@ -163,8 +164,6 @@ class PSRAM(config: Config) extends Module {
 //    dinReg := requestReg.din
   }
 
-  advReg := false.B
-
   // FSM
   switch(stateReg) {
     // Initialize device
@@ -186,10 +185,9 @@ class PSRAM(config: Config) extends Module {
 
     // Start read/write request
     is(State.active) {
-//      when(activeDone) {
-//        when(requestReg.wr) { write() }.otherwise { read() }
-//      }
-      when(readActiveDone) { read() }.elsewhen(writeActiveDone) { write() }
+      when(activeDone) {
+        when(requestReg.wr) { write() }.otherwise { read() }
+      }
     }
 
     // Wait for read
